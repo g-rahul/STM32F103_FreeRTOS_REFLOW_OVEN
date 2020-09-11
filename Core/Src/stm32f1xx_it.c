@@ -42,7 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+extern unsigned char PID_Execute_Counter, ExecutePID;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -215,6 +215,12 @@ void EXTI15_10_IRQHandler(void)
 __HAL_TIM_SET_COUNTER(&htim1,0);
 	HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_2);
+	PID_Execute_Counter++;   
+  if(PID_Execute_Counter > PID_EXECUTE_PWM_PERIODS)
+    {
+        ExecutePID = true;
+        PID_Execute_Counter = 0x0;
+    }
   /* USER CODE END EXTI15_10_IRQn 1 */
 }
 

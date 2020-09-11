@@ -42,7 +42,16 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+#define true 0x01
+#define false 0x0
+#define ADC_SAMPLING_PWM_PERIODS 5
 
+
+#define PID_EXECUTE_PWM_PERIODS 5
+#define DUTYCYCLE_MIN 10                 // (in %age) Min Dutycycle percentage - latching percentage used initially
+#define MIN_PWM_DUTYCYCLE 1
+#define TIMER_PWM_PERIOD  9800
+#define LOW_KP_KI_DUTYCYCLE 1000
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

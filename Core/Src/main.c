@@ -70,13 +70,20 @@ uint32_t sample = 0;
 unsigned int ADC_Sample_Counter;
 unsigned long Avg_vBUS, Avg_vPOT;
 unsigned int Desired_Temp;
-
+//Closed Loop Variables
+unsigned int Desired_PWM_DutyCycle, PWM_Update_Counter;
+unsigned char PID_Execute_Counter, ExecutePID;
+unsigned int Expected_Hall_ISRs_1sec;
+unsigned int Expected_Temp, Measured_Temp, JJ[100],j=0;
+signed int s16_Proportional_Error, s16_Integral_Error, s16_PID_ControlLoop_Output;
+unsigned int PID_Applied_PWM_DutyCycle;
+unsigned int Kp, Ki;
 //SPI Variables
 unsigned char SampleTemperature,Spi_Ready;
 unsigned int SPI_Sample_Counter;
 uint8_t spirx_buff[2];
 uint16_t temp=0;
-uint16_t temperature=0;
+//uint16_t temperature=0;
 unsigned char spi_recv_flag;
 /* USER CODE END PV */
 
@@ -530,12 +537,58 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		Avg_vBUS = ADC_Results[0] >> 3;
-    Avg_vPOT = ADC_Results[1] ;  
-    Desired_Temp = Avg_vPOT*1;       
+		Avg_vPOT = ADC_Results[1] ;  
+    Desired_PWM_DutyCycle = Avg_vPOT*2.45;
+		Expected_Temp = Avg_vPOT*0.0625;
     Start_ADC_Conversion();  
     osDelay(1);
-		htim1.Instance->CCR2 = Desired_Temp*2.5;
+		  
+    if (Desired_PWM_DutyCycle < LOW_KP_KI_DUTYCYCLE)   // Dutycycle threshold which requires different Kp/Ki values
+    {
+        Kp = 500;
+        Ki = 3;
+    }
+    else
+    {
+        Kp = 4000;
+        Ki = 5;
+    }
+		
+		/////////////PID/////////////////////////////////////////////////////////
+		if(ExecutePID == true)
+      {
+          
+            
+          // Compute Proportional and Integral Errors
+          s16_Proportional_Error = Expected_Temp - Measured_Temp;
+          s16_Proportional_Error = (-1)*(s16_Proportional_Error);			// signed int P error = desired-actual
+          s16_Integral_Error += s16_Proportional_Error;                                 // signed int I error = Accumulate P errors
+              
+          s16_PID_ControlLoop_Output = ((((long)Kp*(long)s16_Proportional_Error) + (((long)Ki*(long)s16_Integral_Error))) >> 14); 
+                                                                            // PID Control Loop Equation; Kd = 0
+              
+          PID_Applied_PWM_DutyCycle = Desired_PWM_DutyCycle + (s16_PID_ControlLoop_Output);
+          JJ[j++] = PID_Applied_PWM_DutyCycle;
+          if(j>100)
+            j=0;
+              
+          if (PID_Applied_PWM_DutyCycle < MIN_PWM_DUTYCYCLE)   // 1023      
+          {
+              PID_Applied_PWM_DutyCycle = MIN_PWM_DUTYCYCLE;   // < Min DutyCycle %age - latch to min value, 1023   
+              s16_Integral_Error = 0x0;
+          }
+          if (PID_Applied_PWM_DutyCycle > TIMER_PWM_PERIOD)   // 1023
+          {
+              PID_Applied_PWM_DutyCycle = TIMER_PWM_PERIOD;   // > Max PWM DutyCycle - latch to 100% or max value, 1023   
+              s16_Integral_Error = 0x0;
+          }
+          
+					//PID_Applied_PWM_DutyCycle=Desired_PWM_DutyCycle;
+          // Initialize PWM outputs with initial dutycycle counts
+          htim1.Instance->CCR2 = PID_Applied_PWM_DutyCycle;
+					ExecutePID = false;
+      }
+		/////////////PID/////////////////////////////////////////////////////////
   }
   /* USER CODE END 5 */
 }
@@ -564,7 +617,7 @@ void StartTask02(void *argument)
 	temp =  spirx_buff[0]<<8;
 	temp =  temp|spirx_buff[1];
 	temp = temp>>3;
-	temperature=temp*0.25;
+	Measured_Temp = temp*0.25;
     osDelay(500);
   }
   /* USER CODE END StartTask02 */
