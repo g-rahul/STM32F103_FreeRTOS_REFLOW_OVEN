@@ -583,7 +583,7 @@ void StartDefaultTask(void *argument)
               s16_Integral_Error = 0x0;
           }
           
-					//PID_Applied_PWM_DutyCycle=Desired_PWM_DutyCycle;
+					PID_Applied_PWM_DutyCycle=Desired_PWM_DutyCycle;
           // Initialize PWM outputs with initial dutycycle counts
           htim1.Instance->CCR2 = PID_Applied_PWM_DutyCycle;
 					ExecutePID = false;
